@@ -1,0 +1,2577 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>FtHTypeMaster</title>
+    <style>
+        :root {
+            --bg-primary: #1e1e2e;
+            --bg-secondary: #2a2a3a;
+            --text-primary: #e0e0e0;
+            --text-secondary: #a0a0a0;
+            --accent: #7aa2f7;
+            --correct: #9ece6a;
+            --incorrect: #f7768e;
+            --caret: #7aa2f7;
+            --highlight: rgba(122, 162, 247, 0.15);
+            --shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
+            --transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            
+            /* MonkeyType-like result theme colors */
+            --result-bg: #323437;
+            --result-text: #d1d0c5;
+            --result-primary: #e2b714;
+            --result-secondary: #646669;
+            --result-correct: #e2b714;
+            --result-incorrect: #ca4754;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Fira Code', 'Roboto Mono', monospace;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            background-color: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+            line-height: 1.6;
+            overflow-x: hidden;
+            touch-action: manipulation;
+        }
+
+        /* Verification Modal */
+        .verification-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(0, 0, 0, 0.9);
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            backdrop-filter: blur(5px);
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s ease;
+        }
+
+        .verification-modal.show {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .verification-content {
+            background-color: var(--bg-secondary);
+            border-radius: 12px;
+            width: 90%;
+            max-width: 500px;
+            padding: 1.5rem;
+            box-shadow: var(--shadow);
+            transform: translateY(20px);
+            transition: transform 0.3s ease, opacity 0.3s ease;
+            opacity: 0;
+        }
+
+        .verification-modal.show .verification-content {
+            transform: translateY(0);
+            opacity: 1;
+        }
+
+        .verification-title {
+            font-size: 1.5rem;
+            margin-bottom: 1rem;
+            text-align: center;
+            color: var(--accent);
+        }
+
+        .verification-subtitle {
+            font-size: 1rem;
+            margin-bottom: 1.5rem;
+            text-align: center;
+            color: var(--text-secondary);
+        }
+
+        .verification-step {
+            display: none;
+            animation: fadeIn 0.3s ease;
+        }
+
+        .verification-step.active {
+            display: block;
+        }
+
+        /* Slider Puzzle */
+        .slider-container {
+            position: relative;
+            width: 100%;
+            height: 50px;
+            background-color: var(--bg-primary);
+            border-radius: 25px;
+            margin-bottom: 1.5rem;
+            overflow: hidden;
+            touch-action: none;
+        }
+
+        .slider-track {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            pointer-events: none;
+        }
+
+        .slider-thumb {
+            position: absolute;
+            top: 5px;
+            left: 5px;
+            width: 40px;
+            height: 40px;
+            background-color: var(--accent);
+            border-radius: 50%;
+            cursor: grab;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 2;
+            transition: transform 0.1s ease;
+            touch-action: none;
+            user-select: none;
+        }
+
+        .slider-thumb:active {
+            cursor: grabbing;
+        }
+
+        .slider-thumb-icon {
+            width: 18px;
+            height: 18px;
+            color: var(--bg-primary);
+        }
+
+        .slider-mask {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 0;
+            height: 100%;
+            background-color: rgba(122, 162, 247, 0.3);
+            border-radius: 25px;
+            transition: width 0.1s ease;
+        }
+
+        .slider-success {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: var(--correct);
+            border-radius: 25px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--bg-primary);
+            font-weight: bold;
+            transform: translateX(100%);
+            transition: transform 0.3s ease;
+            font-size: 0.9rem;
+        }
+
+        .slider-success.active {
+            transform: translateX(0);
+        }
+
+        /* Animal Verification */
+        .animal-options {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 0.8rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .animal-option {
+            background-color: var(--bg-primary);
+            border-radius: 8px;
+            padding: 0.8rem;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            border: 2px solid transparent;
+        }
+
+        .animal-option:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        .animal-option.selected {
+            border-color: var(--accent);
+            background-color: rgba(122, 162, 247, 0.1);
+        }
+
+        .animal-option.correct {
+            border-color: var(--correct);
+            background-color: rgba(158, 206, 106, 0.1);
+        }
+
+        .animal-option.incorrect {
+            border-color: var(--incorrect);
+            background-color: rgba(247, 118, 142, 0.1);
+        }
+
+        .animal-icon {
+            font-size: 1.8rem;
+            margin-bottom: 0.4rem;
+        }
+
+        .animal-name {
+            font-size: 0.8rem;
+        }
+
+        .verification-btn {
+            width: 100%;
+            padding: 0.9rem;
+            border-radius: 8px;
+            background-color: var(--accent);
+            color: var(--bg-primary);
+            border: none;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            font-size: 0.95rem;
+        }
+
+        .verification-btn:hover {
+            opacity: 0.9;
+            transform: translateY(-2px);
+        }
+
+        .verification-btn:disabled {
+            background-color: var(--text-secondary);
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .verification-feedback {
+            margin-top: 1rem;
+            padding: 0.7rem;
+            border-radius: 8px;
+            text-align: center;
+            display: none;
+            font-size: 0.9rem;
+        }
+
+        .verification-feedback.success {
+            background-color: rgba(158, 206, 106, 0.2);
+            color: var(--correct);
+            display: block;
+        }
+
+        .verification-feedback.error {
+            background-color: rgba(247, 118, 142, 0.2);
+            color: var(--incorrect);
+            display: block;
+        }
+
+        /* Typing Test Styles */
+        .typing-test-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 1rem;
+            width: 100%;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .container {
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+
+        header {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            padding: 0.5rem 0;
+        }
+
+        .header-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--accent);
+            cursor: pointer;
+            transition: var(--transition);
+        }
+
+        .logo:hover {
+            opacity: 0.8;
+        }
+
+        .nav {
+            display: flex;
+            gap: 1rem;
+            overflow-x: auto;
+            padding-bottom: 0.5rem;
+            scrollbar-width: none;
+        }
+
+        .nav::-webkit-scrollbar {
+            display: none;
+        }
+
+        .nav-item {
+            color: var(--text-secondary);
+            cursor: pointer;
+            transition: var(--transition);
+            position: relative;
+            padding: 0.5rem 0;
+            white-space: nowrap;
+            font-size: 0.95rem;
+        }
+
+        .nav-item:hover, .nav-item.active {
+            color: var(--accent);
+        }
+
+        .nav-item.active::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 2px;
+            background-color: var(--accent);
+            border-radius: 2px;
+        }
+
+        .stats {
+            display: flex;
+            gap: 1rem;
+            overflow-x: auto;
+            padding-bottom: 0.5rem;
+            scrollbar-width: none;
+        }
+
+        .stats::-webkit-scrollbar {
+            display: none;
+        }
+
+        .stat {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-width: 70px;
+        }
+
+        .stat-value {
+            font-size: 1.3rem;
+            font-weight: 700;
+        }
+
+        .stat-label {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .test-area {
+            background-color: var(--bg-secondary);
+            border-radius: 10px;
+            padding: 1.5rem;
+            box-shadow: var(--shadow);
+            height: 250px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .test-container {
+            position: relative;
+            height: 100%;
+            overflow: hidden;
+        }
+
+        .words {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.4rem;
+            font-size: 1.3rem;
+            line-height: 2.2rem;
+            transition: transform 0.3s ease-out;
+            position: absolute;
+            width: 100%;
+        }
+
+        .word {
+            display: flex;
+            position: relative;
+            transition: background-color 0.2s ease;
+            border-radius: 4px;
+            padding: 0 2px;
+        }
+
+        .word.active {
+            background-color: var(--highlight);
+        }
+
+        .letter {
+            position: relative;
+            transition: color 0.1s ease;
+        }
+
+        .letter.correct {
+            color: var(--correct);
+        }
+
+        .letter.incorrect {
+            color: var(--incorrect);
+        }
+
+        .letter.extra {
+            color: var(--incorrect);
+            opacity: 0.7;
+            position: relative;
+            bottom: -0.4rem;
+        }
+
+        .caret {
+            position: absolute;
+            width: 2px;
+            height: 1.8rem;
+            background-color: var(--caret);
+            bottom: 0.2rem;
+            left: -1px;
+            transition: all 0.1s ease-out;
+            opacity: 0;
+            border-radius: 2px;
+        }
+
+        .caret.active {
+            opacity: 1;
+        }
+
+        .input {
+            position: absolute;
+            opacity: 0;
+            pointer-events: none;
+            height: 0;
+            width: 0;
+        }
+
+        footer {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            padding: 0.5rem 0;
+        }
+
+        .command {
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 0.4rem;
+            color: var(--text-secondary);
+            font-size: 0.85rem;
+        }
+
+        .command-key {
+            background-color: var(--bg-secondary);
+            color: var(--text-primary);
+            padding: 0.2rem 0.4rem;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            white-space: nowrap;
+        }
+
+        .settings-btn {
+            background: none;
+            border: none;
+            color: var(--text-secondary);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            transition: var(--transition);
+            padding: 0.5rem;
+            border-radius: 6px;
+            font-size: 0.95rem;
+            margin-left: auto;
+        }
+
+        .settings-btn:hover {
+            color: var(--accent);
+            background-color: rgba(122, 162, 247, 0.1);
+        }
+
+        /* Timer visualization */
+        .timer-container {
+            width: 100%;
+            height: 5px;
+            background-color: rgba(255, 255, 255, 0.1);
+            border-radius: 3px;
+            margin-top: 0.8rem;
+            overflow: hidden;
+        }
+
+        .timer-progress {
+            height: 100%;
+            width: 100%;
+            background-color: var(--accent);
+            border-radius: 3px;
+            transition: width 1s linear;
+        }
+
+        /* Modal styles */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(0, 0, 0, 0.7);
+            z-index: 100;
+            align-items: center;
+            justify-content: center;
+            backdrop-filter: blur(5px);
+            animation: fadeIn 0.3s ease;
+            overflow-y: auto;
+            padding: 1rem;
+        }
+
+        .modal.show {
+            display: flex;
+        }
+
+        .modal-content {
+            background-color: var(--bg-secondary);
+            border-radius: 10px;
+            width: 100%;
+            max-width: 600px;
+            max-height: 90vh;
+            overflow-y: auto;
+            padding: 1.5rem;
+            box-shadow: var(--shadow);
+            animation: slideUp 0.3s ease;
+            transform-origin: center;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.2rem;
+            padding-bottom: 0.8rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .modal-title {
+            font-size: 1.3rem;
+            font-weight: 600;
+            color: var(--accent);
+        }
+
+        .close-btn {
+            background: none;
+            border: none;
+            color: var(--text-secondary);
+            font-size: 1.5rem;
+            cursor: pointer;
+            transition: var(--transition);
+            width: 2rem;
+            height: 2rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+        }
+
+        .close-btn:hover {
+            color: var(--text-primary);
+            background-color: rgba(255, 255, 255, 0.1);
+        }
+
+        /* Result modal - MonkeyType style */
+        .result-content {
+            text-align: center;
+            background-color: var(--result-bg);
+            color: var(--result-text);
+            padding: 1.5rem;
+            border-radius: 8px;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        .result-title {
+            font-size: 1.5rem;
+            margin-bottom: 1.5rem;
+            color: var(--result-primary);
+            font-weight: 700;
+        }
+
+        .result-stats {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .result-stat {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .result-value {
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--result-primary);
+            margin-bottom: 0.4rem;
+        }
+
+        .result-label {
+            font-size: 0.8rem;
+            color: var(--result-secondary);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .result-actions {
+            display: flex;
+            justify-content: center;
+            gap: 0.8rem;
+            margin-top: 1.5rem;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            padding: 0.7rem 1.2rem;
+            border-radius: 8px;
+            border: none;
+            font-weight: 600;
+            cursor: pointer;
+            transition: var(--transition);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.9rem;
+        }
+
+        .btn-primary {
+            background-color: var(--result-primary);
+            color: #000;
+        }
+
+        .btn-primary:hover {
+            opacity: 0.9;
+            transform: translateY(-2px);
+        }
+
+        .btn-secondary {
+            background-color: var(--result-secondary);
+            color: var(--result-text);
+        }
+
+        .btn-secondary:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+            transform: translateY(-2px);
+        }
+
+        /* Detailed stats */
+        .detailed-stats {
+            margin-top: 1.5rem;
+            text-align: left;
+            border-top: 1px solid var(--result-secondary);
+            padding-top: 1.2rem;
+        }
+
+        .stat-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 0.5rem;
+            font-size: 0.9rem;
+        }
+
+        .stat-name {
+            color: var(--result-secondary);
+        }
+
+        .stat-value {
+            color: var(--result-text);
+            font-weight: 600;
+        }
+
+        /* Settings modal */
+        .settings-group {
+            margin-bottom: 1.5rem;
+        }
+
+        .settings-title {
+            font-size: 1rem;
+            margin-bottom: 0.8rem;
+            color: var(--accent);
+        }
+
+        .settings-options {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.6rem;
+        }
+
+        .settings-option {
+            padding: 0.6rem 1rem;
+            border-radius: 8px;
+            background-color: var(--bg-primary);
+            color: var(--text-primary);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            cursor: pointer;
+            transition: var(--transition);
+            font-size: 0.85rem;
+        }
+
+        .settings-option:hover {
+            border-color: var(--accent);
+        }
+
+        .settings-option.active {
+            background-color: var(--accent);
+            color: var(--bg-primary);
+            border-color: var(--accent);
+        }
+
+        /* Custom time input */
+        .custom-time-input {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-top: 0.5rem;
+        }
+
+        .custom-time-input input {
+            background-color: var(--bg-primary);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: var(--text-primary);
+            padding: 0.5rem;
+            border-radius: 4px;
+            width: 60px;
+            text-align: center;
+            font-size: 0.9rem;
+        }
+
+        .custom-time-input button {
+            background-color: var(--accent);
+            color: var(--bg-primary);
+            border: none;
+            padding: 0.5rem 0.8rem;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: var(--transition);
+            font-size: 0.85rem;
+        }
+
+        .custom-time-input button:hover {
+            opacity: 0.9;
+        }
+
+        /* Language selector */
+        .language-selector {
+            display: flex;
+            gap: 0.5rem;
+            margin-top: 0.5rem;
+            flex-wrap: wrap;
+        }
+
+        .language-option {
+            padding: 0.5rem 0.8rem;
+            border-radius: 6px;
+            background-color: var(--bg-primary);
+            color: var(--text-primary);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            cursor: pointer;
+            transition: var(--transition);
+            font-size: 0.8rem;
+        }
+
+        .language-option:hover {
+            border-color: var(--accent);
+        }
+
+        .language-option.active {
+            background-color: var(--accent);
+            color: var(--bg-primary);
+            border-color: var(--accent);
+        }
+
+        /* Animations */
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        @keyframes slideUp {
+            from { 
+                opacity: 0;
+                transform: translateY(20px) scale(0.95);
+            }
+            to { 
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
+        }
+
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .caret.blink {
+            animation: blink 1.2s infinite;
+        }
+
+        /* Responsive design */
+        @media (min-width: 768px) {
+            .typing-test-container {
+                padding: 2rem;
+            }
+            
+            header {
+                flex-direction: row;
+                flex-wrap: wrap;
+                justify-content: space-between;
+                gap: 1.5rem;
+            }
+            
+            .header-top {
+                flex: 1;
+                min-width: 100%;
+            }
+            
+            .nav {
+                justify-content: flex-start;
+                gap: 1.5rem;
+                padding-bottom: 0;
+            }
+            
+            .stats {
+                justify-content: flex-end;
+                gap: 2rem;
+                padding-bottom: 0;
+            }
+            
+            .stat {
+                min-width: 80px;
+            }
+            
+            .stat-value {
+                font-size: 1.5rem;
+            }
+            
+            .stat-label {
+                font-size: 0.9rem;
+            }
+            
+            .test-area {
+                height: 300px;
+                padding: 2rem;
+            }
+            
+            .words {
+                font-size: 1.5rem;
+                line-height: 2.5rem;
+                gap: 0.5rem;
+            }
+            
+            .caret {
+                height: 2rem;
+                bottom: 0.25rem;
+            }
+            
+            footer {
+                flex-direction: row;
+                justify-content: space-between;
+                align-items: center;
+            }
+            
+            .command {
+                font-size: 0.9rem;
+                gap: 0.5rem;
+            }
+            
+            .command-key {
+                font-size: 0.9rem;
+                padding: 0.25rem 0.5rem;
+            }
+            
+            .modal-content {
+                padding: 2rem;
+            }
+            
+            .modal-title {
+                font-size: 1.5rem;
+            }
+            
+            .result-content {
+                padding: 2rem;
+            }
+            
+            .result-title {
+                font-size: 1.8rem;
+                margin-bottom: 2rem;
+            }
+            
+            .result-stats {
+                gap: 2rem;
+                margin-bottom: 2rem;
+            }
+            
+            .result-value {
+                font-size: 2.5rem;
+            }
+            
+            .result-label {
+                font-size: 0.9rem;
+            }
+            
+            .btn {
+                padding: 0.75rem 1.5rem;
+                font-size: 1rem;
+            }
+            
+            .settings-group {
+                margin-bottom: 2rem;
+            }
+            
+            .settings-title {
+                font-size: 1.1rem;
+                margin-bottom: 1rem;
+            }
+            
+            .settings-options {
+                gap: 0.75rem;
+            }
+            
+            .settings-option {
+                padding: 0.75rem 1.25rem;
+                font-size: 0.9rem;
+            }
+        }
+
+        /* Very small screens */
+        @media (max-width: 360px) {
+            .animal-options {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            
+            .animal-icon {
+                font-size: 1.5rem;
+            }
+            
+            .animal-name {
+                font-size: 0.7rem;
+            }
+            
+            .result-stats {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Verification Modal -->
+    <div class="verification-modal" id="verification-modal">
+        <div class="verification-content">
+            <h2 class="verification-title">Verify You're Human</h2>
+            <p class="verification-subtitle">Complete the verification to start typing</p>
+            
+            <div class="verification-step active" id="step-slider">
+                <div class="slider-container">
+                    <div class="slider-track">Slide to complete the puzzle</div>
+                    <div class="slider-mask"></div>
+                    <div class="slider-thumb">
+                        <svg class="slider-thumb-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M21 3H3v18h18V3z"></path>
+                            <path d="M9 9h6v6H9z"></path>
+                        </svg>
+                    </div>
+                    <div class="slider-success">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                            <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                        </svg>
+                        Verified
+                    </div>
+                </div>
+                <button class="verification-btn" id="next-btn" disabled>
+                    Next
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="9 18 15 12 9 6"></polyline>
+                    </svg>
+                </button>
+            </div>
+            
+            <div class="verification-step" id="step-animal">
+                <p class="verification-subtitle">Select all images with <strong id="animal-target">cat</strong></p>
+                <div class="animal-options" id="animal-options">
+                    <!-- Animal options will be generated here -->
+                </div>
+                <button class="verification-btn" id="verify-btn" disabled>
+                    Verify
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                        <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                    </svg>
+                </button>
+                <div class="verification-feedback" id="verification-feedback"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Typing Test App -->
+    <div class="typing-test-container" id="typing-test-app">
+        <div class="container">
+            <header>
+                <div class="header-top">
+                    <div class="logo" id="logo">FtHTypeMaster</div>
+                    <button class="settings-btn" id="settings-btn">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="12" cy="12" r="3"></circle>
+                            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+                        </svg>
+                        Settings
+                    </button>
+                </div>
+                
+                <div class="nav">
+                    <div class="nav-item active" id="nav-time">Time</div>
+                    <div class="nav-item" id="nav-words">Words</div>
+                    <div class="nav-item" id="nav-quote">Quote</div>
+                    <div class="nav-item" id="nav-zen">Zen</div>
+                </div>
+                
+                <div class="stats">
+                    <div class="stat">
+                        <div class="stat-value" id="wpm">0</div>
+                        <div class="stat-label">WPM</div>
+                    </div>
+                    <div class="stat">
+                        <div class="stat-value" id="accuracy">100</div>
+                        <div class="stat-label">Accuracy</div>
+                    </div>
+                    <div class="stat">
+                        <div class="stat-value" id="time">60</div>
+                        <div class="stat-label">Seconds</div>
+                    </div>
+                </div>
+            </header>
+
+            <div class="test-area">
+                <div class="timer-container">
+                    <div class="timer-progress" id="timer-progress"></div>
+                </div>
+                <div class="test-container">
+                    <div class="words" id="words"></div>
+                    <div class="caret" id="caret"></div>
+                    <input type="text" class="input" id="input" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
+                </div>
+            </div>
+
+            <footer>
+                <div class="command">
+                    <span class="command-key">esc / tab</span>
+                    <span>- restart test</span>
+                    <span class="command-key">ctrl</span>
+                    <span>- delete letter</span>
+                    <span class="command-key">ctrl+backspace</span>
+                    <span>- delete word</span>
+                </div>
+            </footer>
+        </div>
+
+        <!-- Result Modal -->
+        <div class="modal" id="result-modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2 class="modal-title">Test Completed</h2>
+                    <button class="close-btn" id="close-result">&times;</button>
+                </div>
+                <div class="result-content">
+                    <h3 class="result-title">Your Results</h3>
+                    <div class="result-stats">
+                        <div class="result-stat">
+                            <div class="result-value" id="result-wpm">0</div>
+                            <div class="result-label">Words Per Minute</div>
+                        </div>
+                        <div class="result-stat">
+                            <div class="result-value" id="result-accuracy">100</div>
+                            <div class="result-label">Accuracy</div>
+                        </div>
+                        <div class="result-stat">
+                            <div class="result-value" id="result-raw">0</div>
+                            <div class="result-label">Raw WPM</div>
+                        </div>
+                        <div class="result-stat">
+                            <div class="result-value" id="result-chars">0/0/0</div>
+                            <div class="result-label">Chars (C/I/M)</div>
+                        </div>
+                    </div>
+                    
+                    <div class="detailed-stats">
+                        <div class="stat-row">
+                            <span class="stat-name">Test Duration:</span>
+                            <span class="stat-value" id="result-duration">0s</span>
+                        </div>
+                        <div class="stat-row">
+                            <span class="stat-name">Correct Characters:</span>
+                            <span class="stat-value" id="result-correct-chars">0</span>
+                        </div>
+                        <div class="stat-row">
+                            <span class="stat-name">Incorrect Characters:</span>
+                            <span class="stat-value" id="result-incorrect-chars">0</span>
+                        </div>
+                        <div class="stat-row">
+                            <span class="stat-name">Missed Characters:</span>
+                            <span class="stat-value" id="result-missed-chars">0</span>
+                        </div>
+                        <div class="stat-row">
+                            <span class="stat-name">Total Keystrokes:</span>
+                            <span class="stat-value" id="result-keystrokes">0</span>
+                        </div>
+                        <div class="stat-row">
+                            <span class="stat-name">Test Mode:</span>
+                            <span class="stat-value" id="result-mode">Time</span>
+                        </div>
+                        <div class="stat-row">
+                            <span class="stat-name">Language:</span>
+                            <span class="stat-value" id="result-language">English</span>
+                        </div>
+                    </div>
+                    
+                    <div class="result-actions">
+                        <button class="btn btn-primary" id="restart-btn">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M2.5 2v6h6M21.5 22v-6h-6"></path>
+                                <path d="M22 11.5A10 10 0 0 0 3.2 7.2M2 12.5a10 10 0 0 0 18.8 4.2"></path>
+                            </svg>
+                            Restart
+                        </button>
+                        <button class="btn btn-secondary" id="share-btn">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"></path>
+                                <polyline points="16 6 12 2 8 6"></polyline>
+                                <line x1="12" y1="2" x2="12" y2="15"></line>
+                            </svg>
+                            Share
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Settings Modal -->
+        <div class="modal" id="settings-modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2 class="modal-title">Settings</h2>
+                    <button class="close-btn" id="close-settings">&times;</button>
+                </div>
+                
+                <div class="settings-group">
+                    <h3 class="settings-title">Test Mode</h3>
+                    <div class="settings-options">
+                        <div class="settings-option active" data-setting="mode" data-value="time">Time</div>
+                        <div class="settings-option" data-setting="mode" data-value="words">Words</div>
+                        <div class="settings-option" data-setting="mode" data-value="quote">Quote</div>
+                        <div class="settings-option" data-setting="mode" data-value="zen">Zen</div>
+                    </div>
+                </div>
+                
+                <div class="settings-group">
+                    <h3 class="settings-title">Time Duration</h3>
+                    <div class="settings-options">
+                        <div class="settings-option" data-setting="time" data-value="15">15s</div>
+                        <div class="settings-option" data-setting="time" data-value="30">30s</div>
+                        <div class="settings-option active" data-setting="time" data-value="60">60s</div>
+                        <div class="settings-option" data-setting="time" data-value="120">120s</div>
+                    </div>
+                    <div class="custom-time-input">
+                        <input type="number" id="custom-time-input" min="5" max="600" placeholder="Custom">
+                        <button id="set-custom-time">Set</button>
+                    </div>
+                </div>
+                
+                <div class="settings-group">
+                    <h3 class="settings-title">Word Count</h3>
+                    <div class="settings-options">
+                        <div class="settings-option" data-setting="words" data-value="10">10</div>
+                        <div class="settings-option active" data-setting="words" data-value="25">25</div>
+                        <div class="settings-option" data-setting="words" data-value="50">50</div>
+                        <div class="settings-option" data-setting="words" data-value="100">100</div>
+                        <div class="settings-option" data-setting="words" data-value="unlimited">Unlimited</div>
+                    </div>
+                </div>
+                
+                <div class="settings-group">
+                    <h3 class="settings-title">Difficulty</h3>
+                    <div class="settings-options">
+                        <div class="settings-option active" data-setting="difficulty" data-value="normal">Normal</div>
+                        <div class="settings-option" data-setting="difficulty" data-value="expert">Expert</div>
+                        <div class="settings-option" data-setting="difficulty" data-value="master">Master</div>
+                    </div>
+                </div>
+                
+                <div class="settings-group">
+                    <h3 class="settings-title">Options</h3>
+                    <div class="settings-options">
+                        <div class="settings-option" data-setting="punctuation" data-value="on">Punctuation</div>
+                        <div class="settings-option" data-setting="numbers" data-value="on">Numbers</div>
+                        <div class="settings-option active" data-setting="sounds" data-value="on">Keyboard Sounds</div>
+                    </div>
+                </div>
+                
+                <div class="settings-group">
+                    <h3 class="settings-title">Language</h3>
+                    <div class="language-selector">
+                        <div class="language-option active" data-lang="english">English</div>
+                        <div class="language-option" data-lang="indonesian">Indonesian</div>
+                        <div class="language-option" data-lang="spanish">Spanish</div>
+                        <div class="language-option" data-lang="french">French</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Animal verification data
+        const animalData = [
+            { name: "cat", emoji: "🐱" },
+            { name: "dog", emoji: "🐶" },
+            { name: "lion", emoji: "🦁" },
+            { name: "tiger", emoji: "🐯" },
+            { name: "bear", emoji: "🐻" },
+            { name: "panda", emoji: "🐼" },
+            { name: "fox", emoji: "🦊" },
+            { name: "wolf", emoji: "🐺" },
+            { name: "elephant", emoji: "🐘" },
+            { name: "giraffe", emoji: "🦒" },
+            { name: "zebra", emoji: "🦓" },
+            { name: "monkey", emoji: "🐵" },
+            { name: "cow", emoji: "🐮" },
+            { name: "pig", emoji: "🐷" },
+            { name: "horse", emoji: "🐴" }
+        ];
+
+        // Word banks with multiple languages and difficulty levels
+        const wordBanks = {
+            english: {
+                normal: [
+                    "the", "quick", "brown", "fox", "jumps", "over", "lazy", "dog", "hello", "world",
+                    "this", "is", "typing", "test", "code", "html", "css", "javascript", "python", "java",
+                    "keyboard", "speed", "accuracy", "practice", "improve", "computer", "internet", "website",
+                    "program", "developer", "algorithm", "function", "variable", "console", "browser", "window",
+                    "document", "element", "object", "array", "string", "number", "boolean", "null", "undefined"
+                ],
+                expert: [
+                    "asynchronous", "backpropagation", "compiler", "deterministic", "eigenvalue", "fractal",
+                    "geohashing", "heuristic", "idempotent", "juxtaposition", "kaleidoscope", "lexical",
+                    "metaprogramming", "nonlinear", "orthogonal", "polymorphism", "quantum", "recursive",
+                    "stochastic", "transpiler", "universal", "volatile", "whitespace", "xenomorphic", "yottabyte"
+                ],
+                master: [
+                    "antidisestablishmentarianism", "counterrevolutionaries", "electroencephalography",
+                    "incomprehensibilities", "internationalization", "microspectrophotometries",
+                    "pneumonoultramicroscopicsilicovolcanoconiosis", "pseudopseudohypoparathyroidism",
+                    "supercalifragilisticexpialidocious", "thyroparathyroidectomized", "uncharacteristically"
+                ]
+            },
+            indonesian: {
+                normal: [
+                    "saya", "kamu", "mereka", "kami", "kita", "ini", "itu", "disana", "dimana", "kapan",
+                    "bagaimana", "mengapa", "siapa", "apa", "buku", "pensil", "meja", "kursi", "rumah",
+                    "sekolah", "kantor", "kota", "negara", "dunia", "komputer", "internet", "website",
+                    "program", "aplikasi", "telepon", "handphone", "televisi", "radio", "musik", "lagu", "jawa", "sunda",
+                    "botak", "gundul", "kucing", "anjing", "burung", "ikan", "kerbau", "kambing", "sapi", "babi",
+                    "faithtampan", "faithtampan"
+                ],
+                expert: [
+                    "faithtampan", "pembangunan", "perkembangan", "kebersamaan", "keterampilan", "keseimbangan",
+                    "kepemimpinan", "faithtampan", "pengetahuan", "pengalaman", "kemampuan", "keterlibatan",
+                    "kesejahteraan", "kebijaksanaan", "kepuasan", "keteraturan", "keterbatasan"
+                ],
+                master: [
+                    "ketidakbertanggungjawaban", "faithtampan", "mempertanggungjawabkan", "penanggulangan",
+                    "pertanggungjawaban", "ketidaksengajaan", "faithtampan", "menyalahgunakan", "memperhatikan",
+                    "mengistimewakan", "mempertimbangkan", "mengkhawatirkan"
+                ]
+            },
+            spanish: {
+                normal: [
+                    "el", "la", "los", "las", "un", "una", "unos", "unas", "yo", "tú", "él", "ella",
+                    "nosotros", "vosotros", "ellos", "ellas", "este", "ese", "aquel", "aquí", "allí",
+                    "ahí", "casa", "perro", "gato", "libro", "pluma", "lapiz", "escuela", "maestro"
+                ],
+                expert: [
+                    "desarrollador", "aplicación", "tecnología", "información", "comunicación",
+                    "arquitectura", "infraestructura", "plataforma", "interfaz", "usuario",
+                    "experiencia", "rendimiento", "seguridad", "privacidad", "almacenamiento"
+                ],
+                master: [
+                    "electroencefalografista", "esternocleidomastoideo", "otorrinolaringólogo",
+                    "desoxirribonucleico", "electrodomésticos", "paralelepípedo", "arqueológico",
+                    "inconstitucionalidad", "internacionalización", "características"
+                ]
+            },
+            french: {
+                normal: [
+                    "le", "la", "les", "un", "une", "des", "je", "tu", "il", "elle", "nous", "vous",
+                    "ils", "elles", "ce", "cet", "cette", "ces", "maison", "chien", "chat", "livre",
+                    "stylo", "crayon", "école", "professeur", "ordinateur", "internet", "site"
+                ],
+                expert: [
+                    "développeur", "application", "technologie", "information", "communication",
+                    "architecture", "infrastructure", "plateforme", "interface", "utilisateur",
+                    "expérience", "performance", "sécurité", "confidentialité", "stockage"
+                ],
+                master: [
+                    "anticonstitutionnellement", "électroencéphalographie", "sternocléidomastoïdien",
+                    "otorhinolaryngologiste", "désoxyribonucléique", "électroménager", "parallélépipède",
+                    "archéologique", "internationalisation", "caractéristiques"
+                ]
+            }
+        };
+
+        // Sentence lists with multiple languages
+        const sentenceBanks = {
+            english: [
+                "The quick brown fox jumps over the lazy dog.",
+                "Pack my box with five dozen liquor jugs.",
+                "How vexingly quick daft zebras jump!",
+                "Bright vixens jump; dozy fowl quack.",
+                "Sphinx of black quartz, judge my vow.",
+                "The five boxing wizards jump quickly.",
+                "Crazy Fredrick bought many very exquisite opal jewels.",
+                "We promptly judged antique ivory buckles for the next prize.",
+                "Jaded zombies acted quaintly but kept driving their oxen forward.",
+                "The job requires extra pluck and zeal from every young wage earner."
+            ],
+            indonesian: [
+                "faith sangat tampan sekali dan owner terkeren.",
+                "Saya sedang belajar mengetik dengan cepat dan akurat.",
+                "Pekerjaan ini membutuhkan ketelitian dan kesabaran yang tinggi.",
+                "Dia pergi ke pasar untuk membeli sayuran dan buah-buahan segar.",
+                "Anak-anak bermain dengan gembira di taman yang luas itu.",
+                "Kami akan mengadakan rapat penting besok pagi di kantor.",
+                "Buku itu berisi berbagai macam pengetahuan yang sangat bermanfaat.",
+                "Pemerintah sedang berusaha meningkatkan kesejahteraan rakyat.",
+                "Teknologi informasi berkembang sangat pesat di era digital ini.",
+                "Mereka bekerja sama menyelesaikan proyek yang cukup rumit.",
+                "Universitas itu terkenal dengan fasilitas pendidikannya yang lengkap."
+            ],
+            spanish: [
+                "El veloz murciélago hindú comía feliz cardillo y kiwi.",
+                "La cigüeña tocaba el saxofón detrás del palenque de paja.",
+                "El pingüino Wenceslao hizo kilómetros bajo exhaustiva lluvia y frío.",
+                "Quiere la boca exhausta vid, kiwi, piña y fugaz jamón.",
+                "Fabio me exige, sin tapujos, que añada cerveza al whisky.",
+                "Jovencillo emponzoñado de whisky, ¡qué figurota exhibe!",
+                "El cadáver de Wamba, rey godo de España, fue exhumado y trasladado.",
+                "Whisky bueno: ¡excitad mi frágil pequeña vejez!",
+                "Benjamín pidió una bebida de kiwi y fresa; Noé, sin vergüenza, la más exquisita champaña del menú.",
+                "El viejo Señor Gómez pedía queso, kiwi y habas, pero le ha tocado un saxofón."
+            ],
+            french: [
+                "Portez ce vieux whisky au juge blond qui fume.",
+                "Voix ambiguë d'un cœur qui au zéphyr préfère les jattes de kiwis.",
+                "L'extraordinaire joie du pauvre pygmée qui pêche au whisky.",
+                "Les jolies wagnériennes de Québec exagèrent en buvant du whisky.",
+                "Buvez de ce whisky que le patron juge fameux.",
+                "Jugez que ce texto renferme l'alphabet, voyelles y consonnes, à quoi bon?",
+                "Mon fils, waxe ces meubles en bois jaune avec le vieux chiffon.",
+                "Feu mon époux, jugez bien que ce whisky rend fou!",
+                "Exigez le whisky que ce bon juge a marqué de son sceau.",
+                "Zéphyr, fixe mon corazón sobre un wagon de bijoux."
+            ]
+        };
+
+        // Number sets for different languages
+        const numberBanks = {
+            english: [
+                "123", "456", "789", "102", "345", "678", "911", "246", "810", "121",
+                "314", "159", "265", "358", "979", "323", "846", "264", "338", "327",
+                "950", "288", "419", "716", "939", "937", "510", "582", "097", "494"
+            ],
+            indonesian: [
+                "123", "456", "789", "102", "345", "678", "911", "246", "810", "121",
+                "314", "159", "265", "358", "979", "323", "846", "264", "338", "327",
+                "950", "288", "419", "716", "939", "937", "510", "582", "097", "494"
+            ],
+            spanish: [
+                "123", "456", "789", "102", "345", "678", "911", "246", "810", "121",
+                "314", "159", "265", "358", "979", "323", "846", "264", "338", "327",
+                "950", "288", "419", "716", "939", "937", "510", "582", "097", "494"
+            ],
+            french: [
+                "123", "456", "789", "102", "345", "678", "911", "246", "810", "121",
+                "314", "159", "265", "358", "979", "323", "846", "264", "338", "327",
+                "950", "288", "419", "716", "939", "937", "510", "582", "097", "494"
+            ]
+        };
+
+        // DOM elements for verification
+        const verificationElements = {
+            modal: document.getElementById('verification-modal'),
+            content: document.querySelector('.verification-content'),
+            sliderThumb: document.querySelector('.slider-thumb'),
+            sliderMask: document.querySelector('.slider-mask'),
+            sliderSuccess: document.querySelector('.slider-success'),
+            nextBtn: document.getElementById('next-btn'),
+            animalOptions: document.getElementById('animal-options'),
+            animalTarget: document.getElementById('animal-target'),
+            verifyBtn: document.getElementById('verify-btn'),
+            verificationFeedback: document.getElementById('verification-feedback'),
+            stepSlider: document.getElementById('step-slider'),
+            stepAnimal: document.getElementById('step-animal')
+        };
+
+        // Verification state
+        const verificationState = {
+            isDragging: false,
+            startX: 0,
+            currentX: 0,
+            targetAnimal: null,
+            selectedAnimals: [],
+            correctAnimals: []
+        };
+
+        // DOM elements for typing test
+        const typingTestElements = {
+            words: document.getElementById('words'),
+            input: document.getElementById('input'),
+            caret: document.getElementById('caret'),
+            wpm: document.getElementById('wpm'),
+            accuracy: document.getElementById('accuracy'),
+            time: document.getElementById('time'),
+            timerProgress: document.getElementById('timer-progress'),
+            logo: document.getElementById('logo'),
+            settingsBtn: document.getElementById('settings-btn'),
+            navItems: {
+                time: document.getElementById('nav-time'),
+                words: document.getElementById('nav-words'),
+                quote: document.getElementById('nav-quote'),
+                zen: document.getElementById('nav-zen')
+            },
+            modals: {
+                result: document.getElementById('result-modal'),
+                settings: document.getElementById('settings-modal')
+            },
+            closeBtns: {
+                result: document.getElementById('close-result'),
+                settings: document.getElementById('close-settings')
+            },
+            resultValues: {
+                wpm: document.getElementById('result-wpm'),
+                accuracy: document.getElementById('result-accuracy'),
+                raw: document.getElementById('result-raw'),
+                chars: document.getElementById('result-chars'),
+                duration: document.getElementById('result-duration'),
+                correctChars: document.getElementById('result-correct-chars'),
+                incorrectChars: document.getElementById('result-incorrect-chars'),
+                missedChars: document.getElementById('result-missed-chars'),
+                keystrokes: document.getElementById('result-keystrokes'),
+                mode: document.getElementById('result-mode'),
+                language: document.getElementById('result-language')
+            },
+            buttons: {
+                restart: document.getElementById('restart-btn'),
+                share: document.getElementById('share-btn'),
+                setCustomTime: document.getElementById('set-custom-time')
+            },
+            inputs: {
+                customTime: document.getElementById('custom-time-input')
+            }
+        };
+
+        // Typing test state
+        const typingTestState = {
+            words: [],
+            currentWordIndex: 0,
+            currentLetterIndex: 0,
+            startTime: null,
+            timer: null,
+            timeLeft: 60,
+            correctChars: 0,
+            incorrectChars: 0,
+            missedChars: 0,
+            totalKeystrokes: 0,
+            testActive: false,
+            testCompleted: false,
+            settings: {
+                mode: 'time',
+                time: 60,
+                words: 25,
+                difficulty: 'normal',
+                punctuation: false,
+                numbers: false,
+                sounds: true,
+                language: 'english'
+            },
+            typedLetters: [],
+            originalWords: [],
+            currentResult: null,
+            audioContext: null,
+            gainNode: null
+        };
+
+        // Initialize verification
+        function initVerification() {
+            setupVerificationEventListeners();
+            showVerificationModal();
+            setupAnimalVerification();
+        }
+
+        // Show verification modal
+        function showVerificationModal() {
+            verificationElements.modal.classList.add('show');
+            document.body.style.overflow = 'hidden';
+        }
+
+        // Hide verification modal
+        function hideVerificationModal() {
+            verificationElements.modal.classList.remove('show');
+            document.body.style.overflow = '';
+            initTypingTest(); // Initialize typing test after verification
+        }
+
+        // Setup verification event listeners
+        function setupVerificationEventListeners() {
+            // Slider puzzle
+            verificationElements.sliderThumb.addEventListener('mousedown', startDrag);
+            verificationElements.sliderThumb.addEventListener('touchstart', startDrag, { passive: false });
+            
+            document.addEventListener('mousemove', drag);
+            document.addEventListener('touchmove', drag, { passive: false });
+            
+            document.addEventListener('mouseup', endDrag);
+            document.addEventListener('touchend', endDrag);
+            
+            // Next button
+            verificationElements.nextBtn.addEventListener('click', () => {
+                verificationElements.stepSlider.classList.remove('active');
+                verificationElements.stepAnimal.classList.add('active');
+            });
+            
+            // Verify button
+            verificationElements.verifyBtn.addEventListener('click', verifyAnimals);
+        }
+
+        // Start dragging the slider
+        function startDrag(e) {
+            e.preventDefault();
+            verificationState.isDragging = true;
+            const clientX = e.type === 'mousedown' ? e.clientX : e.touches[0].clientX;
+            verificationState.startX = clientX;
+            verificationElements.sliderThumb.style.cursor = 'grabbing';
+        }
+
+        // Drag the slider
+        function drag(e) {
+            if (!verificationState.isDragging) return;
+            e.preventDefault();
+            
+            const sliderContainer = verificationElements.sliderThumb.parentElement;
+            const containerRect = sliderContainer.getBoundingClientRect();
+            const containerWidth = containerRect.width;
+            const thumbWidth = verificationElements.sliderThumb.offsetWidth;
+            
+            const clientX = e.type === 'mousemove' ? e.clientX : e.touches[0].clientX;
+            verificationState.currentX = clientX;
+            let newX = verificationState.currentX - verificationState.startX;
+            
+            // Constrain movement within container
+            newX = Math.max(0, Math.min(newX, containerWidth - thumbWidth - 10));
+            
+            verificationElements.sliderThumb.style.transform = `translateX(${newX}px)`;
+            verificationElements.sliderMask.style.width = `${newX + thumbWidth / 2}px`;
+            
+            // Check if puzzle is completed (slider at 90% or more)
+            if (newX >= containerWidth * 0.9 - thumbWidth) {
+                completeSlider();
+            }
+        }
+
+        // End dragging the slider
+        function endDrag() {
+            if (!verificationState.isDragging) return;
+            verificationState.isDragging = false;
+            verificationElements.sliderThumb.style.cursor = 'grab';
+            
+            // If not completed, reset slider
+            if (!verificationElements.nextBtn.disabled) return;
+            
+            const sliderContainer = verificationElements.sliderThumb.parentElement;
+            const containerWidth = sliderContainer.getBoundingClientRect().width;
+            const thumbWidth = verificationElements.sliderThumb.offsetWidth;
+            const currentX = parseInt(verificationElements.sliderThumb.style.transform.replace('translateX(', '').replace('px)', '')) || 0;
+            
+            // Animate back if not completed
+            if (currentX < containerWidth * 0.9 - thumbWidth) {
+                verificationElements.sliderThumb.style.transition = 'transform 0.3s ease';
+                verificationElements.sliderMask.style.transition = 'width 0.3s ease';
+                
+                verificationElements.sliderThumb.style.transform = 'translateX(0)';
+                verificationElements.sliderMask.style.width = '0';
+                
+                setTimeout(() => {
+                    verificationElements.sliderThumb.style.transition = '';
+                    verificationElements.sliderMask.style.transition = '';
+                }, 300);
+            }
+        }
+
+        // Complete slider puzzle
+        function completeSlider() {
+            verificationState.isDragging = false;
+            
+            const sliderContainer = verificationElements.sliderThumb.parentElement;
+            const containerWidth = sliderContainer.getBoundingClientRect().width;
+            const thumbWidth = verificationElements.sliderThumb.offsetWidth;
+            
+            verificationElements.sliderThumb.style.transition = 'transform 0.3s ease';
+            verificationElements.sliderThumb.style.transform = `translateX(${containerWidth - thumbWidth - 10}px)`;
+            
+            verificationElements.sliderSuccess.classList.add('active');
+            verificationElements.nextBtn.disabled = false;
+            
+            setTimeout(() => {
+                verificationElements.sliderThumb.style.display = 'none';
+            }, 500);
+        }
+
+        // Setup animal verification
+        function setupAnimalVerification() {
+            verificationElements.animalOptions.innerHTML = '';
+            verificationState.selectedAnimals = [];
+            verificationState.correctAnimals = [];
+            verificationElements.verifyBtn.disabled = true;
+            verificationElements.verificationFeedback.className = 'verification-feedback';
+            verificationElements.verificationFeedback.style.display = 'none';
+            
+            // Select a random target animal
+            const randomIndex = Math.floor(Math.random() * animalData.length);
+            verificationState.targetAnimal = animalData[randomIndex].name;
+            verificationElements.animalTarget.textContent = verificationState.targetAnimal;
+            
+            // Shuffle animals and select 6 (including at least 2 target animals)
+            const shuffledAnimals = [...animalData].sort(() => Math.random() - 0.5);
+            const targetAnimals = shuffledAnimals.filter(a => a.name === verificationState.targetAnimal).slice(0, 2);
+            const otherAnimals = shuffledAnimals.filter(a => a.name !== verificationState.targetAnimal).slice(0, 4);
+            const selectedAnimals = [...targetAnimals, ...otherAnimals].sort(() => Math.random() - 0.5);
+            
+            // Store correct animals for verification
+            verificationState.correctAnimals = selectedAnimals
+                .map((animal, index) => animal.name === verificationState.targetAnimal ? index : null)
+                .filter(index => index !== null);
+            
+            // Create animal options
+            selectedAnimals.forEach((animal, index) => {
+                const animalOption = document.createElement('div');
+                animalOption.className = 'animal-option';
+                animalOption.dataset.index = index;
+                
+                animalOption.innerHTML = `
+                    <div class="animal-icon">${animal.emoji}</div>
+                    <div class="animal-name">${animal.name}</div>
+                `;
+                
+                animalOption.addEventListener('click', () => {
+                    toggleAnimalSelection(animalOption, index);
+                });
+                
+                verificationElements.animalOptions.appendChild(animalOption);
+            });
+        }
+
+        // Toggle animal selection
+        function toggleAnimalSelection(option, index) {
+            option.classList.toggle('selected');
+            
+            if (option.classList.contains('selected')) {
+                verificationState.selectedAnimals.push(index);
+            } else {
+                verificationState.selectedAnimals = verificationState.selectedAnimals.filter(i => i !== index);
+            }
+            
+            verificationElements.verifyBtn.disabled = verificationState.selectedAnimals.length === 0;
+        }
+
+        // Verify selected animals
+        function verifyAnimals() {
+            // Check if all correct animals are selected and no incorrect ones
+            const allCorrectSelected = verificationState.correctAnimals.every(index => 
+                verificationState.selectedAnimals.includes(index)
+            );
+            
+            const noIncorrectSelected = verificationState.selectedAnimals.every(index => 
+                verificationState.correctAnimals.includes(index)
+            );
+            
+            const isVerified = allCorrectSelected && noIncorrectSelected;
+            
+            // Show feedback
+            if (isVerified) {
+                verificationElements.verificationFeedback.textContent = 'Verification successful!';
+                verificationElements.verificationFeedback.className = 'verification-feedback success';
+                verificationElements.verificationFeedback.style.display = 'block';
+                
+                // Mark correct/incorrect selections
+                document.querySelectorAll('.animal-option').forEach((option, index) => {
+                    if (verificationState.correctAnimals.includes(index)) {
+                        option.classList.add('correct');
+                    }
+                    option.classList.remove('selected');
+                });
+                
+                // Disable further selection
+                document.querySelectorAll('.animal-option').forEach(option => {
+                    option.style.pointerEvents = 'none';
+                });
+                
+                verificationElements.verifyBtn.disabled = true;
+                
+                // Proceed after delay
+                setTimeout(hideVerificationModal, 1500);
+            } else {
+                verificationElements.verificationFeedback.textContent = 'Please select all matching images. Try again.';
+                verificationElements.verificationFeedback.className = 'verification-feedback error';
+                verificationElements.verificationFeedback.style.display = 'block';
+                
+                // Mark correct/incorrect selections
+                document.querySelectorAll('.animal-option').forEach((option, index) => {
+                    if (verificationState.correctAnimals.includes(index)) {
+                        option.classList.add('correct');
+                    }
+                    if (verificationState.selectedAnimals.includes(index) && 
+                        !verificationState.correctAnimals.includes(index)) {
+                        option.classList.add('incorrect');
+                    }
+                    option.classList.remove('selected');
+                });
+                
+                // Reset after showing feedback
+                setTimeout(() => {
+                    setupAnimalVerification();
+                }, 2000);
+            }
+        }
+
+        // Initialize typing test
+        function initTypingTest() {
+            setupTypingTestEventListeners();
+            generateTestContent();
+            updateActiveNavItem();
+            initAudio();
+        }
+
+        // Initialize audio for typing test
+        function initAudio() {
+            try {
+                typingTestState.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                typingTestState.gainNode = typingTestState.audioContext.createGain();
+                typingTestState.gainNode.gain.value = 0.3;
+                typingTestState.gainNode.connect(typingTestState.audioContext.destination);
+            } catch (e) {
+                console.error('Web Audio API not supported', e);
+                typingTestState.settings.sounds = false;
+                const soundsOption = document.querySelector('.settings-option[data-setting="sounds"]');
+                if (soundsOption) {
+                    soundsOption.classList.remove('active');
+                    soundsOption.dataset.value = 'off';
+                }
+            }
+        }
+
+        // Play key sound
+        function playKeySound() {
+            if (!typingTestState.settings.sounds || !typingTestState.audioContext) return;
+            
+            const now = typingTestState.audioContext.currentTime;
+            const oscillator = typingTestState.audioContext.createOscillator();
+            const gain = typingTestState.audioContext.createGain();
+            
+            oscillator.type = 'sine';
+            oscillator.frequency.value = 100 + Math.random() * 200;
+            
+            gain.gain.setValueAtTime(0.1, now);
+            gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.1);
+            
+            oscillator.connect(gain);
+            gain.connect(typingTestState.gainNode);
+            
+            oscillator.start(now);
+            oscillator.stop(now + 0.1);
+        }
+
+        // Play space sound
+        function playSpaceSound() {
+            if (!typingTestState.settings.sounds || !typingTestState.audioContext) return;
+            
+            const now = typingTestState.audioContext.currentTime;
+            const oscillator = typingTestState.audioContext.createOscillator();
+            const gain = typingTestState.audioContext.createGain();
+            
+            oscillator.type = 'sine';
+            oscillator.frequency.value = 80 + Math.random() * 40;
+            
+            gain.gain.setValueAtTime(0.15, now);
+            gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.15);
+            
+            oscillator.connect(gain);
+            gain.connect(typingTestState.gainNode);
+            
+            oscillator.start(now);
+            oscillator.stop(now + 0.15);
+        }
+
+        // Play backspace sound
+        function playBackspaceSound() {
+            if (!typingTestState.settings.sounds || !typingTestState.audioContext) return;
+            
+            const now = typingTestState.audioContext.currentTime;
+            const oscillator = typingTestState.audioContext.createOscillator();
+            const gain = typingTestState.audioContext.createGain();
+            
+            oscillator.type = 'sine';
+            oscillator.frequency.value = 60 + Math.random() * 30;
+            
+            gain.gain.setValueAtTime(0.1, now);
+            gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.2);
+            
+            oscillator.connect(gain);
+            gain.connect(typingTestState.gainNode);
+            
+            oscillator.start(now);
+            oscillator.stop(now + 0.2);
+        }
+
+        // Set up typing test event listeners
+        function setupTypingTestEventListeners() {
+            // Input handling
+            typingTestElements.input.addEventListener('input', handleInput);
+            typingTestElements.input.addEventListener('keydown', handleKeyDown);
+            
+            // Navigation
+            Object.keys(typingTestElements.navItems).forEach(mode => {
+                typingTestElements.navItems[mode].addEventListener('click', () => {
+                    typingTestState.settings.mode = mode;
+                    updateActiveNavItem();
+                    generateTestContent();
+                });
+            });
+            
+            // Modal controls
+            typingTestElements.settingsBtn.addEventListener('click', () => {
+                typingTestElements.modals.settings.classList.add('show');
+                typingTestElements.input.blur();
+            });
+            
+            typingTestElements.closeBtns.settings.addEventListener('click', () => {
+                typingTestElements.modals.settings.classList.remove('show');
+                typingTestElements.input.focus();
+            });
+            
+            typingTestElements.closeBtns.result.addEventListener('click', () => {
+                typingTestElements.modals.result.classList.remove('show');
+            });
+            
+            // Buttons
+            typingTestElements.logo.addEventListener('click', generateTestContent);
+            typingTestElements.buttons.restart.addEventListener('click', generateTestContent);
+            typingTestElements.buttons.share.addEventListener('click', shareResults);
+            
+            // Custom time input
+            typingTestElements.buttons.setCustomTime.addEventListener('click', () => {
+                const customTime = parseInt(typingTestElements.inputs.customTime.value);
+                if (customTime >= 5 && customTime <= 600) {
+                    typingTestState.settings.time = customTime;
+                    typingTestElements.time.textContent = customTime;
+                    typingTestState.timeLeft = customTime;
+                    generateTestContent();
+                    
+                    // Update active time option
+                    document.querySelectorAll('.settings-option[data-setting="time"]').forEach(opt => {
+                        opt.classList.remove('active');
+                    });
+                }
+            });
+            
+            // Settings options
+            document.querySelectorAll('.settings-option').forEach(option => {
+                option.addEventListener('click', () => {
+                    const setting = option.dataset.setting;
+                    const value = option.dataset.value;
+                    
+                    if (setting === 'punctuation' || setting === 'numbers' || setting === 'sounds') {
+                        const newValue = value === 'on' ? 'off' : 'on';
+                        option.dataset.value = newValue;
+                        
+                        if (newValue === 'on') {
+                            option.classList.add('active');
+                        } else {
+                            option.classList.remove('active');
+                        }
+                    } else {
+                        document.querySelectorAll(`.settings-option[data-setting="${setting}"]`).forEach(opt => {
+                            opt.classList.remove('active');
+                        });
+                        option.classList.add('active');
+                    }
+                    
+                    if (setting === 'mode') {
+                        typingTestState.settings.mode = value;
+                        updateActiveNavItem();
+                    } else if (setting === 'time') {
+                        typingTestState.settings.time = parseInt(value);
+                        typingTestElements.time.textContent = typingTestState.settings.time;
+                        typingTestState.timeLeft = typingTestState.settings.time;
+                    } else if (setting === 'words') {
+                        typingTestState.settings.words = value === 'unlimited' ? 'unlimited' : parseInt(value);
+                    } else if (setting === 'difficulty') {
+                        typingTestState.settings.difficulty = value;
+                    } else if (setting === 'punctuation') {
+                        typingTestState.settings.punctuation = value === 'on';
+                    } else if (setting === 'numbers') {
+                        typingTestState.settings.numbers = value === 'on';
+                    } else if (setting === 'sounds') {
+                        typingTestState.settings.sounds = value === 'on';
+                    }
+                    
+                    generateTestContent();
+                });
+            });
+            
+            // Language options
+            document.querySelectorAll('.language-option').forEach(option => {
+                option.addEventListener('click', () => {
+                    document.querySelectorAll('.language-option').forEach(opt => {
+                        opt.classList.remove('active');
+                    });
+                    option.classList.add('active');
+                    typingTestState.settings.language = option.dataset.lang;
+                    generateTestContent();
+                });
+            });
+            
+            // Close modals when clicking outside
+            window.addEventListener('click', (e) => {
+                if (e.target === typingTestElements.modals.result) {
+                    typingTestElements.modals.result.classList.remove('show');
+                }
+                if (e.target === typingTestElements.modals.settings) {
+                    typingTestElements.modals.settings.classList.remove('show');
+                    typingTestElements.input.focus();
+                }
+            });
+        }
+
+        // Generate test content
+        function generateTestContent() {
+            resetTestState();
+            
+            if (typingTestState.settings.mode === 'time' || typingTestState.settings.mode === 'zen') {
+                generateRandomContent(typingTestState.settings.mode === 'zen' ? 'unlimited' : 100);
+            } else if (typingTestState.settings.mode === 'words') {
+                generateRandomContent(typingTestState.settings.words === 'unlimited' ? 100 : typingTestState.settings.words);
+            } else if (typingTestState.settings.mode === 'quote') {
+                generateRandomQuote();
+            }
+            
+            typingTestState.originalWords = [...typingTestState.words];
+            renderWords();
+            updateUI();
+            typingTestElements.input.value = '';
+            typingTestElements.input.focus();
+        }
+
+        // Generate random content
+        function generateRandomContent(count) {
+            typingTestState.words = [];
+            const wordPool = wordBanks[typingTestState.settings.language][typingTestState.settings.difficulty];
+            
+            for (let i = 0; i < count; i++) {
+                const randomIndex = Math.floor(Math.random() * wordPool.length);
+                typingTestState.words.push(wordPool[randomIndex]);
+            }
+            
+            if (typingTestState.settings.numbers) {
+                const numberPool = numberBanks[typingTestState.settings.language];
+                for (let i = 0; i < Math.floor(count / 5); i++) {
+                    const randomIndex = Math.floor(Math.random() * numberPool.length);
+                    const insertAt = Math.floor(Math.random() * typingTestState.words.length);
+                    typingTestState.words.splice(insertAt, 0, numberPool[randomIndex]);
+                }
+            }
+            
+            if (typingTestState.settings.punctuation) {
+                const punctuation = [',', '.', '!', '?', ';', ':'];
+                for (let i = 0; i < typingTestState.words.length; i++) {
+                    if (Math.random() > 0.7) {
+                        typingTestState.words[i] += punctuation[Math.floor(Math.random() * punctuation.length)];
+                    }
+                }
+            }
+        }
+
+        // Generate random quote
+        function generateRandomQuote() {
+            const quotePool = sentenceBanks[typingTestState.settings.language];
+            const randomIndex = Math.floor(Math.random() * quotePool.length);
+            const quote = quotePool[randomIndex];
+            typingTestState.words = quote.split(' ');
+        }
+
+        // Render words
+        function renderWords() {
+            typingTestElements.words.innerHTML = '';
+            typingTestElements.words.style.transform = 'translateY(0)';
+            
+            typingTestState.words.forEach((word, wordIndex) => {
+                const wordElement = document.createElement('div');
+                wordElement.className = 'word';
+                wordElement.dataset.wordIndex = wordIndex;
+                
+                for (let i = 0; i < word.length; i++) {
+                    const letterElement = document.createElement('span');
+                    letterElement.className = 'letter';
+                    letterElement.textContent = word[i];
+                    wordElement.appendChild(letterElement);
+                }
+                
+                if (wordIndex < typingTestState.words.length - 1) {
+                    const spaceElement = document.createElement('span');
+                    spaceElement.className = 'letter space';
+                    spaceElement.textContent = ' ';
+                    wordElement.appendChild(spaceElement);
+                }
+                
+                typingTestElements.words.appendChild(wordElement);
+            });
+            
+            highlightCurrentWord();
+            positionCaret();
+            typingTestElements.caret.classList.add('active', 'blink');
+        }
+
+        // Handle input
+        function handleInput(e) {
+            if (typingTestState.testCompleted) return;
+            
+            if (!typingTestState.testActive) {
+                startTest();
+            }
+            
+            const inputValue = e.target.value;
+            
+            if (inputValue.length === 0) {
+                // Handle backspace (empty input)
+                handleBackspace();
+                return;
+            }
+            
+            const inputChar = inputValue[inputValue.length - 1];
+            typingTestState.totalKeystrokes++;
+            
+            playKeySound();
+            
+            typingTestState.typedLetters.push({
+                char: inputChar,
+                wordIndex: typingTestState.currentWordIndex,
+                letterIndex: typingTestState.currentLetterIndex,
+                wasCorrect: false
+            });
+            
+            if (inputChar === ' ') {
+                playSpaceSound();
+                handleSpace();
+            } else {
+                handleCharacter(inputChar);
+            }
+            
+            updateStats();
+            e.target.value = '';
+        }
+
+        // Handle key down
+        function handleKeyDown(e) {
+            if (e.key === 'Escape' || e.key === 'Tab') {
+                e.preventDefault();
+                generateTestContent();
+            }
+            
+            if (e.key === 'Backspace') {
+                // Prevent default backspace behavior (like navigating back)
+                e.preventDefault();
+                
+                // Blink caret animation
+                typingTestElements.caret.classList.remove('blink');
+                setTimeout(() => {
+                    typingTestElements.caret.classList.add('blink');
+                }, 500);
+                
+                // If Ctrl is pressed, delete the whole word
+                if (e.ctrlKey) {
+                    deleteCurrentWord();
+                }
+                // Otherwise, handle backspace in the input event
+            }
+            
+            // Handle Ctrl for single character deletion (alternative to backspace)
+            if (e.ctrlKey && !e.altKey && !e.metaKey && !e.shiftKey && e.key !== 'Backspace') {
+                e.preventDefault();
+                handleBackspace();
+            }
+        }
+
+        // Handle backspace (single character deletion)
+        function handleBackspace() {
+            if (typingTestState.typedLetters.length === 0) return;
+            
+            playBackspaceSound();
+            
+            const lastTyped = typingTestState.typedLetters.pop();
+            typingTestState.totalKeystrokes--;
+            
+            typingTestState.currentWordIndex = lastTyped.wordIndex;
+            typingTestState.currentLetterIndex = lastTyped.letterIndex;
+            
+            const wordElements = document.querySelectorAll('.word');
+            const currentWordElement = wordElements[typingTestState.currentWordIndex];
+            const letterElements = currentWordElement.querySelectorAll('.letter');
+            
+            if (typingTestState.currentLetterIndex < letterElements.length) {
+                const letterElement = letterElements[typingTestState.currentLetterIndex];
+                
+                if (letterElement.classList.contains('correct')) {
+                    typingTestState.correctChars--;
+                    letterElement.classList.remove('correct');
+                } else if (letterElement.classList.contains('incorrect')) {
+                    typingTestState.incorrectChars--;
+                    letterElement.classList.remove('incorrect');
+                }
+            } else {
+                const extraLetters = currentWordElement.querySelectorAll('.letter.extra');
+                if (extraLetters.length > 0) {
+                    currentWordElement.removeChild(extraLetters[extraLetters.length - 1]);
+                    typingTestState.incorrectChars--;
+                }
+            }
+            
+            highlightCurrentWord();
+            positionCaret();
+            scrollToCurrentWord();
+            updateStats();
+        }
+
+        // Delete current word (with ctrl+backspace)
+        function deleteCurrentWord() {
+            if (typingTestState.typedLetters.length === 0) return;
+            
+            playBackspaceSound();
+            
+            // Find all letters in the current word
+            const currentWordIndex = typingTestState.currentWordIndex;
+            const wordLetters = typingTestState.typedLetters.filter(letter => 
+                letter.wordIndex === currentWordIndex
+            );
+            
+            // Remove these letters from typedLetters
+            typingTestState.typedLetters = typingTestState.typedLetters.filter(letter => 
+                letter.wordIndex !== currentWordIndex
+            );
+            
+            // Update character counts
+            wordLetters.forEach(letter => {
+                typingTestState.totalKeystrokes--;
+                if (letter.wasCorrect) {
+                    typingTestState.correctChars--;
+                } else {
+                    typingTestState.incorrectChars--;
+                }
+            });
+            
+            // Reset to start of current word
+            typingTestState.currentLetterIndex = 0;
+            
+            // Re-render the word
+            const wordElements = document.querySelectorAll('.word');
+            const currentWordElement = wordElements[currentWordIndex];
+            const currentWord = typingTestState.words[currentWordIndex];
+            
+            // Clear all letter classes
+            const letterElements = currentWordElement.querySelectorAll('.letter');
+            letterElements.forEach(letter => {
+                letter.classList.remove('correct', 'incorrect');
+            });
+            
+            // Remove any extra letters
+            const extraLetters = currentWordElement.querySelectorAll('.letter.extra');
+            extraLetters.forEach(letter => {
+                currentWordElement.removeChild(letter);
+            });
+            
+            highlightCurrentWord();
+            positionCaret();
+            scrollToCurrentWord();
+            updateStats();
+        }
+
+        // Handle space
+        function handleSpace() {
+            const wordElements = document.querySelectorAll('.word');
+            const currentWordElement = wordElements[typingTestState.currentWordIndex];
+            const letterElements = currentWordElement.querySelectorAll('.letter');
+            
+            if (typingTestState.currentLetterIndex >= typingTestState.words[typingTestState.currentWordIndex].length) {
+                moveToNextWord();
+            } else {
+                for (let i = typingTestState.currentLetterIndex; i < typingTestState.words[typingTestState.currentWordIndex].length; i++) {
+                    letterElements[i].classList.add('incorrect');
+                    typingTestState.incorrectChars++;
+                    typingTestState.missedChars++;
+                }
+                
+                moveToNextWord();
+            }
+        }
+
+        // Handle character
+        function handleCharacter(inputChar) {
+            const wordElements = document.querySelectorAll('.word');
+            const currentWordElement = wordElements[typingTestState.currentWordIndex];
+            const letterElements = currentWordElement.querySelectorAll('.letter');
+            const currentWord = typingTestState.words[typingTestState.currentWordIndex];
+            
+            if (typingTestState.currentLetterIndex < currentWord.length) {
+                if (inputChar === currentWord[typingTestState.currentLetterIndex]) {
+                    letterElements[typingTestState.currentLetterIndex].classList.add('correct');
+                    typingTestState.correctChars++;
+                    typingTestState.typedLetters[typingTestState.typedLetters.length - 1].wasCorrect = true;
+                } else {
+                    letterElements[typingTestState.currentLetterIndex].classList.add('incorrect');
+                    typingTestState.incorrectChars++;
+                    typingTestState.typedLetters[typingTestState.typedLetters.length - 1].wasCorrect = false;
+                }
+                
+                typingTestState.currentLetterIndex++;
+            } else {
+                const extraLetter = document.createElement('span');
+                extraLetter.className = 'letter extra';
+                extraLetter.textContent = inputChar;
+                currentWordElement.appendChild(extraLetter);
+                typingTestState.incorrectChars++;
+                typingTestState.typedLetters[typingTestState.typedLetters.length - 1].wasCorrect = false;
+            }
+            
+            positionCaret();
+        }
+
+        // Move to next word
+        function moveToNextWord() {
+            typingTestState.currentWordIndex++;
+            typingTestState.currentLetterIndex = 0;
+            highlightCurrentWord();
+            
+            if (typingTestState.settings.mode === 'words' && typingTestState.currentWordIndex >= typingTestState.words.length) {
+                if (typingTestState.settings.words === 'unlimited') {
+                    generateRandomContent(25);
+                    renderWords();
+                    typingTestState.currentWordIndex = 0;
+                    typingTestState.currentLetterIndex = 0;
+                    highlightCurrentWord();
+                    scrollToCurrentWord();
+                    return;
+                } else {
+                    endTest();
+                    return;
+                }
+            }
+            
+            if (typingTestState.currentWordIndex >= typingTestState.words.length) {
+                generateTestContent();
+                return;
+            }
+            
+            scrollToCurrentWord();
+        }
+
+        // Start test
+        function startTest() {
+            typingTestState.testActive = true;
+            typingTestState.startTime = Date.now();
+            
+            if (typingTestState.settings.mode === 'time') {
+                typingTestState.timeLeft = typingTestState.settings.time;
+                typingTestElements.time.textContent = typingTestState.timeLeft;
+                updateTimerVisualization();
+                startTimer();
+            }
+        }
+
+        // Update timer visualization
+        function updateTimerVisualization() {
+            const percentage = (typingTestState.timeLeft / typingTestState.settings.time) * 100;
+            typingTestElements.timerProgress.style.width = `${percentage}%`;
+            
+            if (percentage < 20) {
+                typingTestElements.timerProgress.style.backgroundColor = '#f7768e';
+            } else if (percentage < 50) {
+                typingTestElements.timerProgress.style.backgroundColor = '#e0af68';
+            } else {
+                typingTestElements.timerProgress.style.backgroundColor = '#7aa2f7';
+            }
+        }
+
+        // Start timer
+        function startTimer() {
+            if (typingTestState.timer) clearInterval(typingTestState.timer);
+            
+            typingTestState.timer = setInterval(() => {
+                typingTestState.timeLeft--;
+                typingTestElements.time.textContent = typingTestState.timeLeft;
+                updateTimerVisualization();
+                
+                if (typingTestState.timeLeft <= 0) {
+                    endTest();
+                }
+            }, 1000);
+        }
+
+        // End test
+        function endTest() {
+            clearInterval(typingTestState.timer);
+            typingTestState.testActive = false;
+            typingTestState.testCompleted = true;
+            
+            const timeElapsed = typingTestState.settings.mode === 'time' 
+                ? typingTestState.settings.time - typingTestState.timeLeft 
+                : (Date.now() - typingTestState.startTime) / 1000;
+            
+            const minutes = timeElapsed / 60;
+            const wpm = Math.round((typingTestState.correctChars / 5) / minutes);
+            const rawWpm = Math.round((typingTestState.totalKeystrokes / 5) / minutes);
+            const accuracy = Math.round((typingTestState.correctChars / typingTestState.totalKeystrokes) * 100) || 0;
+            
+            typingTestState.currentResult = {
+                id: Date.now().toString(36) + Math.random().toString(36).substr(2),
+                mode: typingTestState.settings.mode,
+                wpm: wpm,
+                rawWpm: rawWpm,
+                accuracy: accuracy,
+                correctChars: typingTestState.correctChars,
+                incorrectChars: typingTestState.incorrectChars,
+                missedChars: typingTestState.missedChars,
+                time: typingTestState.settings.mode === 'time' ? typingTestState.settings.time : null,
+                words: typingTestState.settings.mode === 'words' ? typingTestState.settings.words : null,
+                language: typingTestState.settings.language,
+                timestamp: Date.now()
+            };
+            
+            // Update result display with MonkeyType-like theme
+            typingTestElements.resultValues.wpm.textContent = wpm;
+            typingTestElements.resultValues.accuracy.textContent = accuracy;
+            typingTestElements.resultValues.raw.textContent = rawWpm;
+            typingTestElements.resultValues.chars.textContent = `${typingTestState.correctChars}/${typingTestState.incorrectChars}/${typingTestState.missedChars}`;
+            typingTestElements.resultValues.duration.textContent = `${Math.round(timeElapsed)}s`;
+            typingTestElements.resultValues.correctChars.textContent = typingTestState.correctChars;
+            typingTestElements.resultValues.incorrectChars.textContent = typingTestState.incorrectChars;
+            typingTestElements.resultValues.missedChars.textContent = typingTestState.missedChars;
+            typingTestElements.resultValues.keystrokes.textContent = typingTestState.totalKeystrokes;
+            typingTestElements.resultValues.mode.textContent = typingTestState.settings.mode.charAt(0).toUpperCase() + typingTestState.settings.mode.slice(1);
+            typingTestElements.resultValues.language.textContent = typingTestState.settings.language.charAt(0).toUpperCase() + typingTestState.settings.language.slice(1);
+            
+            typingTestElements.modals.result.classList.add('show');
+            typingTestElements.input.blur();
+        }
+
+        // Share results
+        function shareResults() {
+            const wpm = typingTestElements.resultValues.wpm.textContent;
+            const accuracy = typingTestElements.resultValues.accuracy.textContent;
+            const text = `I just typed at ${wpm} WPM with ${accuracy}% accuracy on FtHTypeMaster!`;
+            
+            if (navigator.share) {
+                navigator.share({
+                    title: 'FtHTypeMaster Results',
+                    text: text,
+                    url: window.location.href
+                }).catch(err => {
+                    console.log('Error sharing:', err);
+                    copyToClipboard(text);
+                });
+            } else {
+                copyToClipboard(text);
+            }
+        }
+
+        // Copy to clipboard
+        function copyToClipboard(text) {
+            const textarea = document.createElement('textarea');
+            textarea.value = text;
+            document.body.appendChild(textarea);
+            textarea.select();
+            document.execCommand('copy');
+            document.body.removeChild(textarea);
+            alert('Results copied to clipboard!');
+        }
+
+        // Update active nav item
+        function updateActiveNavItem() {
+            Object.keys(typingTestElements.navItems).forEach(mode => {
+                typingTestElements.navItems[mode].classList.toggle('active', mode === typingTestState.settings.mode);
+            });
+        }
+
+        // Highlight current word
+        function highlightCurrentWord() {
+            document.querySelectorAll('.word').forEach(word => {
+                word.classList.remove('active');
+            });
+            
+            const currentWordElement = document.querySelector(`.word[data-word-index="${typingTestState.currentWordIndex}"]`);
+            if (currentWordElement) {
+                currentWordElement.classList.add('active');
+            }
+        }
+
+        // Position caret
+        function positionCaret() {
+            const wordElements = document.querySelectorAll('.word');
+            if (wordElements.length === 0) return;
+
+            const currentWordElement = wordElements[typingTestState.currentWordIndex];
+            if (!currentWordElement) return;
+
+            const letterElements = currentWordElement.querySelectorAll('.letter');
+            if (letterElements.length === 0) return;
+
+            let targetLetter;
+            if (typingTestState.currentLetterIndex < letterElements.length) {
+                targetLetter = letterElements[typingTestState.currentLetterIndex];
+            } else {
+                targetLetter = letterElements[letterElements.length - 1];
+            }
+
+            const wordRect = currentWordElement.getBoundingClientRect();
+            const letterRect = targetLetter.getBoundingClientRect();
+            const wordsContainerRect = typingTestElements.words.getBoundingClientRect();
+
+            typingTestElements.caret.style.left = `${letterRect.left - wordsContainerRect.left}px`;
+            typingTestElements.caret.style.top = `${letterRect.top - wordsContainerRect.top}px`;
+        }
+
+        // Scroll to current word
+        function scrollToCurrentWord() {
+            const wordElements = document.querySelectorAll('.word');
+            const currentWordElement = wordElements[typingTestState.currentWordIndex];
+            const currentWordRect = currentWordElement.getBoundingClientRect();
+            const wordsContainerRect = typingTestElements.words.getBoundingClientRect();
+            
+            if (currentWordRect.bottom > wordsContainerRect.bottom) {
+                const scrollAmount = currentWordRect.bottom - wordsContainerRect.bottom + 20;
+                typingTestElements.words.style.transform = `translateY(-${scrollAmount}px)`;
+            } else if (currentWordRect.top < wordsContainerRect.top) {
+                const scrollAmount = wordsContainerRect.top - currentWordRect.top + 20;
+                typingTestElements.words.style.transform = `translateY(${scrollAmount}px)`;
+            }
+            
+            positionCaret();
+        }
+
+        // Update stats
+        function updateStats() {
+            updateWPM();
+            updateAccuracy();
+        }
+
+        // Update WPM
+        function updateWPM() {
+            if (!typingTestState.startTime) return;
+            
+            const timeElapsed = (Date.now() - typingTestState.startTime) / 1000 / 60;
+            const wpm = Math.round((typingTestState.correctChars / 5) / timeElapsed);
+            typingTestElements.wpm.textContent = wpm;
+        }
+
+        // Update accuracy
+        function updateAccuracy() {
+            if (typingTestState.totalKeystrokes === 0) {
+                typingTestElements.accuracy.textContent = '100';
+                return;
+            }
+            
+            const accuracy = Math.round((typingTestState.correctChars / typingTestState.totalKeystrokes) * 100);
+            typingTestElements.accuracy.textContent = accuracy;
+        }
+
+        // Reset test state
+        function resetTestState() {
+            typingTestState.currentWordIndex = 0;
+            typingTestState.currentLetterIndex = 0;
+            typingTestState.timeLeft = typingTestState.settings.mode === 'time' ? typingTestState.settings.time : 0;
+            typingTestState.correctChars = 0;
+            typingTestState.incorrectChars = 0;
+            typingTestState.missedChars = 0;
+            typingTestState.totalKeystrokes = 0;
+            typingTestState.testActive = false;
+            typingTestState.testCompleted = false;
+            typingTestState.typedLetters = [];
+            
+            if (typingTestState.timer) {
+                clearInterval(typingTestState.timer);
+                typingTestState.timer = null;
+            }
+        }
+
+        // Update UI
+        function updateUI() {
+            typingTestElements.wpm.textContent = '0';
+            typingTestElements.accuracy.textContent = '100';
+            typingTestElements.time.textContent = typingTestState.timeLeft;
+            typingTestElements.timerProgress.style.width = '100%';
+            typingTestElements.timerProgress.style.backgroundColor = '#7aa2f7';
+            typingTestElements.modals.result.classList.remove('show');
+        }
+
+        // Start the application with verification
+        document.addEventListener('DOMContentLoaded', initVerification);
+    </script>
+</body>
+</html>
